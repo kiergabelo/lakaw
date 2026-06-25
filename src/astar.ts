@@ -36,6 +36,12 @@ export interface AStarOptions {
    * for algorithm visualization. Step count starts at 0 (start node = step 0).
    */
   onVisit?: (nodeId: string, step: number, gScore: number, fScore: number) => void;
+  /**
+   * Optional callback fired whenever a node is pushed into the open set
+   * (the frontier). Fires for the start node and for every relaxation
+   * that discovers a cheaper path. Useful to visualize the frontier.
+   */
+  onEnqueue?: (nodeId: string, fScore: number) => void;
 }
 
 export interface AStarResult {
@@ -59,7 +65,7 @@ export interface AStarResult {
  * - Good for routing, grid pathfinding, puzzle solvers, game AI.
  */
 export function astar(opts: AStarOptions): AStarResult {
-  const { graph, start, isGoal, heuristic, onVisit } = opts;
+  const { graph, start, isGoal, heuristic, onVisit, onEnqueue } = opts;
   const maxIter = opts.maxIterations ?? 100_000;
 
   const open = new StablePriorityQueue<string>();
@@ -67,8 +73,10 @@ export function astar(opts: AStarOptions): AStarResult {
   const cameFrom = new Map<string, { from: string; edgeCost: number }>();
   const closed = new Set<string>();
 
+  const startF = heuristic?.(start) ?? 0;
   gScore.set(start, 0);
-  open.enqueue(start, (heuristic?.(start) ?? 0));
+  open.enqueue(start, startF);
+  onEnqueue?.(start, startF);
 
   let iterations = 0;
   let visitedCount = 0;
@@ -98,7 +106,9 @@ export function astar(opts: AStarOptions): AStarResult {
       if (tentativeG < known) {
         cameFrom.set(edge.to, { from: current, edgeCost: edge.cost });
         gScore.set(edge.to, tentativeG);
-        open.enqueue(edge.to, tentativeG + (heuristic?.(edge.to) ?? 0));
+        const f = tentativeG + (heuristic?.(edge.to) ?? 0);
+        open.enqueue(edge.to, f);
+        onEnqueue?.(edge.to, f);
       }
     }
   }

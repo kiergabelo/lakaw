@@ -80,6 +80,8 @@ Manhattan-distance heuristic is built in.
 | `isGoal` | `(id) => boolean` | yes | Predicate for the goal |
 | `heuristic` | `(from) => number` | no | Admissible estimate to the goal (default 0 → Dijkstra) |
 | `maxIterations` | `number` | no | Safety cap (default 100,000) |
+| `onVisit` | `(id, step, g, f) => void` | no | Fired when a node is popped to the closed set (visualization) |
+| `onEnqueue` | `(id, f) => void` | no | Fired when a node is pushed to the open set / frontier |
 
 Returns `{ path, cost, iterations, visited, found }`.
 
