@@ -3,21 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lakaw — A* Pathfinding</title>
+  <title>Lakaw — A* vs Dijkstra Visualizer</title>
   <style>
     :root {
       color-scheme: dark;
-      --bg: #0a0b0e;
+      --bg: #06070a;
       --fg: #f4f4f5;
       --muted: #a1a1aa;
-      --faint: #71717a;
-      --line: #1e1f24;
-      --card: #121318;
+      --faint: #52525b;
+      --line: #14151a;
+      --card: #0c0d12;
+      --panel: #121318;
       --accent: #4ade80;
       --warm: #fb923c;
       --cool: #60a5fa;
       --rain: #818cf8;
-      --visited: #3f3f46;
+      --astar: #38bdf8;
+      --dijkstra: #fb7185;
+      --path: #4ade80;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -28,13 +31,57 @@
       padding: 1.5rem;
       -webkit-font-smoothing: antialiased;
     }
-    .container { max-width: 720px; margin: 0 auto; }
+    .container { max-width: 1400px; margin: 0 auto; }
     header { margin-bottom: 1.5rem; }
-    h1 { font-size: 1.875rem; font-weight: 700; letter-spacing: -0.02em; }
-    .subtitle { color: var(--muted); font-size: 0.875rem; margin-top: 0.25rem; }
+    h1 { font-size: 1.875rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--muted); font-size: 0.875rem; max-width: 720px; line-height: 1.6; }
+    .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+    }
+    .panel-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .panel-title {
+      font-size: 0.875rem; font-weight: 600;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .panel-tag {
+      font-size: 0.6875rem; padding: 2px 8px;
+      border-radius: 999px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .tag-astar { background: rgba(56, 189, 248, 0.15); color: var(--astar); }
+    .tag-dijkstra { background: rgba(251, 113, 133, 0.15); color: var(--dijkstra); }
+    .stats-row {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem; margin-top: 0.75rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 0.5rem;
+      padding: 0.5rem 0.625rem;
+    }
+    .stat-label {
+      font-size: 0.625rem; color: var(--faint);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 2px;
+    }
+    .stat-value { font-size: 1.125rem; font-weight: 600; }
+    .stat-value.astar { color: var(--astar); }
+    .stat-value.dijkstra { color: var(--dijkstra); }
+    .stat-value.path { color: var(--path); }
+    svg { display: block; width: 100%; height: auto; background: var(--bg); border-radius: 0.5rem; }
     .controls {
       display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;
-      margin-bottom: 1rem;
+      margin-bottom: 1.25rem;
     }
     button {
       background: var(--card);
@@ -42,9 +89,10 @@
       color: var(--fg);
       padding: 0.5rem 1rem;
       border-radius: 0.5rem;
-      font-size: 0.875rem;
+      font-size: 0.8125rem;
       cursor: pointer;
       transition: all 0.15s;
+      font-family: inherit;
     }
     button:hover { border-color: var(--accent); color: var(--accent); }
     button.primary {
@@ -52,74 +100,135 @@
       font-weight: 600;
     }
     button.primary:hover { filter: brightness(1.1); color: var(--bg); }
-    .stats {
-      display: flex; gap: 1.5rem; flex-wrap: wrap;
-      color: var(--muted); font-size: 0.8125rem;
-      font-variant-numeric: tabular-nums;
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .mode-selector {
+      display: inline-flex; gap: 0.25rem;
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 0.5rem; padding: 0.25rem;
     }
-    .stats span strong { color: var(--fg); font-weight: 500; }
-    .mode {
-      display: inline-flex; gap: 0.25rem; background: var(--card);
-      border: 1px solid var(--line); border-radius: 0.5rem; padding: 0.25rem;
-    }
-    .mode button {
+    .mode-selector button {
       background: transparent; border: none; padding: 0.375rem 0.75rem;
-      font-size: 0.8125rem; border-radius: 0.375rem;
+      font-size: 0.75rem; border-radius: 0.375rem;
     }
-    .mode button.active { background: var(--line); color: var(--accent); }
-    #grid { display: block; width: 100%; max-width: 720px; height: auto; }
+    .mode-selector button.active {
+      background: var(--panel); color: var(--accent);
+    }
+    .speed-control {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      width: 120px; height: 4px;
+      background: var(--line); border-radius: 999px; outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 12px; height: 12px; border-radius: 999px;
+      background: var(--accent); cursor: pointer;
+    }
     .legend {
       display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;
       font-size: 0.75rem; color: var(--muted);
     }
     .legend-item { display: flex; align-items: center; gap: 0.375rem; }
-    .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
     footer {
-      margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line);
+      margin-top: 1.5rem; padding-top: 1rem;
+      border-top: 1px solid var(--line);
       font-size: 0.75rem; color: var(--faint);
     }
-    a { color: var(--muted); text-decoration: underline; }
-    a:hover { color: var(--fg); }
+    footer a { color: var(--muted); text-decoration: underline; }
+    footer a:hover { color: var(--fg); }
+    .progress-bar {
+      height: 3px; background: var(--line); border-radius: 999px;
+      overflow: hidden; margin-top: 0.5rem;
+    }
+    .progress-fill {
+      height: 100%; width: 0%; border-radius: 999px;
+      transition: width 0.05s linear;
+    }
+    .progress-fill.astar { background: var(--astar); }
+    .progress-fill.dijkstra { background: var(--dijkstra); }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>Lakaw</h1>
-      <p class="subtitle">A* pathfinding on a grid — click to add walls, drag the nodes, run the search. The library is 1.4 KB of dependency-free TypeScript.</p>
+      <h1>Lakaw — A* vs Dijkstra</h1>
+      <p class="subtitle">
+        Side-by-side algorithm visualization. Both run on the same grid with the same walls.
+        A* (left) uses a Manhattan-distance heuristic; Dijkstra (right) uses none.
+        Watch how A* prunes the search space by steering toward the goal.
+      </p>
     </header>
 
     <div class="controls">
-      <button class="primary" id="run">▶ Run A*</button>
-      <button id="clear">Clear walls</button>
+      <button class="primary" id="run">▶ Run</button>
+      <button id="step">Step</button>
+      <button id="reset">Reset</button>
       <button id="maze">Random maze</button>
-      <div class="mode">
-        <button data-mode="wall" class="active">Wall</button>
-        <button data-mode="start">Start</button>
-        <button data-mode="goal">Goal</button>
+      <button id="clear">Clear walls</button>
+      <div class="mode-selector">
+        <button data-mode="wall" class="active">Draw walls</button>
+        <button data-mode="start">Move start</button>
+        <button data-mode="goal">Move goal</button>
+      </div>
+      <div class="speed-control">
+        <span>Speed</span>
+        <input type="range" id="speed" min="1" max="200" value="60" />
+        <span id="speed-label">60 cells/s</span>
       </div>
     </div>
 
-    <div class="stats" id="stats">
-      <span>Cost: <strong id="stat-cost">—</strong></span>
-      <span>Visited: <strong id="stat-visited">—</strong></span>
-      <span>Iterations: <strong id="stat-iter">—</strong></span>
-      <span>Path length: <strong id="stat-path">—</strong></span>
-    </div>
+    <div class="layout">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="panel-tag tag-astar">A*</span>
+            Manhattan-distance heuristic
+          </div>
+        </div>
+        <svg id="grid-astar" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="progress-bar"><div class="progress-fill astar" id="prog-astar"></div></div>
+        <div class="stats-row">
+          <div class="stat"><div class="stat-label">Visited</div><div class="stat-value astar" id="astar-visited">0</div></div>
+          <div class="stat"><div class="stat-label">Path</div><div class="stat-value path" id="astar-path">—</div></div>
+          <div class="stat"><div class="stat-label">Cost</div><div class="stat-value" id="astar-cost">—</div></div>
+          <div class="stat"><div class="stat-label">Iterations</div><div class="stat-value" id="astar-iter">—</div></div>
+        </div>
+      </div>
 
-    <svg id="grid" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="panel-tag tag-dijkstra">Dijkstra</span>
+            No heuristic (h = 0)
+          </div>
+        </div>
+        <svg id="grid-dijkstra" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="progress-bar"><div class="progress-fill dijkstra" id="prog-dijkstra"></div></div>
+        <div class="stats-row">
+          <div class="stat"><div class="stat-label">Visited</div><div class="stat-value dijkstra" id="dik-visited">0</div></div>
+          <div class="stat"><div class="stat-label">Path</div><div class="stat-value path" id="dik-path">—</div></div>
+          <div class="stat"><div class="stat-label">Cost</div><div class="stat-value" id="dik-cost">—</div></div>
+          <div class="stat"><div class="stat-label">Iterations</div><div class="stat-value" id="dik-iter">—</div></div>
+        </div>
+      </div>
+    </div>
 
     <div class="legend">
       <div class="legend-item"><div class="legend-dot" style="background: var(--accent)"></div> Start</div>
       <div class="legend-item"><div class="legend-dot" style="background: var(--warm)"></div> Goal</div>
       <div class="legend-item"><div class="legend-dot" style="background: var(--line)"></div> Wall</div>
-      <div class="legend-item"><div class="legend-dot" style="background: var(--visited)"></div> Visited</div>
-      <div class="legend-item"><div class="legend-dot" style="background: var(--cool)"></div> Path</div>
+      <div class="legend-item"><div class="legend-dot" style="background: var(--astar); opacity: 0.4"></div> A* visited</div>
+      <div class="legend-item"><div class="legend-dot" style="background: var(--dijkstra); opacity: 0.4"></div> Dijkstra visited</div>
+      <div class="legend-item"><div class="legend-dot" style="background: var(--path)"></div> Final path</div>
     </div>
 
     <footer>
       Lakaw · Cebuano for "walk/go" · extracted from <a href="https://amping.app" target="_blank">Amping</a> transit router.
-      <br><a href="https://github.com/kiergabelo/lakaw" target="_blank">source</a>
+      <br><a href="https://github.com/kiergabelo/lakaw" target="_blank">source</a> · open the devtools console to see iteration logs
     </footer>
   </div>
 

@@ -30,6 +30,12 @@ export interface AStarOptions {
   heuristic?: (from: string) => number;
   /** Safety valve. Default 100_000. */
   maxIterations?: number;
+  /**
+   * Optional callback fired when a node is popped from the open set and
+   * added to the closed set — i.e. when A* commits to visiting it. Useful
+   * for algorithm visualization. Step count starts at 0 (start node = step 0).
+   */
+  onVisit?: (nodeId: string, step: number, gScore: number, fScore: number) => void;
 }
 
 export interface AStarResult {
@@ -53,7 +59,7 @@ export interface AStarResult {
  * - Good for routing, grid pathfinding, puzzle solvers, game AI.
  */
 export function astar(opts: AStarOptions): AStarResult {
-  const { graph, start, isGoal, heuristic } = opts;
+  const { graph, start, isGoal, heuristic, onVisit } = opts;
   const maxIter = opts.maxIterations ?? 100_000;
 
   const open = new StablePriorityQueue<string>();
@@ -74,6 +80,10 @@ export function astar(opts: AStarOptions): AStarResult {
     const current = open.dequeue()!;
     if (closed.has(current)) continue;
     closed.add(current);
+
+    const currentG = gScore.get(current) ?? 0;
+    const currentF = currentG + (heuristic?.(current) ?? 0);
+    onVisit?.(current, visitedCount, currentG, currentF);
     visitedCount++;
 
     if (isGoal(current)) {
@@ -81,7 +91,6 @@ export function astar(opts: AStarOptions): AStarResult {
       return { path, cost: gScore.get(current) ?? 0, iterations, visited: visitedCount, found: true };
     }
 
-    const currentG = gScore.get(current) ?? Infinity;
     for (const edge of graph.neighbors(current)) {
       if (closed.has(edge.to)) continue;
       const tentativeG = currentG + edge.cost;
