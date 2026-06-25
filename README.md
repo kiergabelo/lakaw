@@ -107,7 +107,7 @@ npm run build:demo    # outputs to demo/dist/
 npx vite preview     # serves at localhost:4173
 ```
 
-Or visit the deployed demo (TBD on Vercel / Cloudflare Pages).
+Or visit the deployed demo at `lakaw.kierabelo.com` (Cloudflare Pages).
 
 ## Benchmarks
 
