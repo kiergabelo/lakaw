@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Demo build
+demo/dist/
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
