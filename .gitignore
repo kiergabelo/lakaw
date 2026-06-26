@@ -9,3 +9,6 @@ demo/dist/
 .vscode/
 .idea/
 .DS_Store
+
+# Portfolio integration guide (not part of the project)
+INTEGRATION.md
