@@ -18,6 +18,7 @@
     "README.md"
   ],
   "scripts": {
+    "dev": "vite",
     "build": "tsup src/index.ts --format cjs,esm --clean && tsc -p tsconfig.build.json",
     "build:demo": "vite build --config vite.config.ts",
     "test": "vitest run",
